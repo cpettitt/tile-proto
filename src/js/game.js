@@ -5,7 +5,10 @@ var stage = new PIXI.Stage(0),
 document.getElementById("game").appendChild(renderer.view);
 
 var map,
-    player;
+    player,
+    viewport = new PIXI.DisplayObjectContainer();
+
+stage.addChild(viewport);
 
 loadGame(onAssetsLoaded);
 
@@ -36,7 +39,7 @@ function onAssetsLoaded(levelData) {
 
       sprite.position.x = stageX;
       sprite.position.y = stageY;
-      stage.addChild(sprite);
+      viewport.addChild(sprite);
       map[i][j] = sprite;
 
       stageX += levelData.tilewidth;
@@ -51,7 +54,7 @@ function onAssetsLoaded(levelData) {
   player.anchor.y = 0.5;
   player.position.x = 160;
   player.position.y = 160;
-  stage.addChild(player);
+  viewport.addChild(player);
 
   gameLoop();
 }
@@ -64,7 +67,8 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-var LEFT = 37,
+var BASE_VELOCITY = 3,
+    LEFT = 37,
     UP = 38,
     RIGHT = 39,
     DOWN = 40;
@@ -73,16 +77,16 @@ function handleInput() {
   player.position.vy = 0;
 
   if (key.isPressed(UP)) {
-    player.position.vy = -2;
+    player.position.vy = -BASE_VELOCITY;
   }
   if (key.isPressed(DOWN)) {
-    player.position.vy = 2;
+    player.position.vy = BASE_VELOCITY;
   }
   if (key.isPressed(LEFT)) {
-    player.position.vx = -2;
+    player.position.vx = -BASE_VELOCITY;
   }
   if (key.isPressed(RIGHT)) {
-    player.position.vx = 2;
+    player.position.vx = BASE_VELOCITY;
   }
 }
 
@@ -120,6 +124,9 @@ function movePlayer() {
       player.position.x = Math.floor(currentTile.x + 64 - player.width / 2);
     }
   }
+
+  viewport.position.x = renderer.view.width / 2 - player.position.x;
+  viewport.position.y = renderer.view.height / 2 - player.position.y;
 }
 
 function getCorners(obj, vx, vy) {
