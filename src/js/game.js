@@ -102,8 +102,10 @@ function onAssetsLoaded(levelData) {
   player = PIXI.Sprite.fromFrame("images/player.png");
   player.anchor.x = 0.5;
   player.anchor.y = 0.5;
-  player.position.x = 160;
-  player.position.y = 160;
+
+  var playerSpawn = levelData.layers[1].objects[0];
+  player.position.x = playerSpawn.x;
+  player.position.y = playerSpawn.y;
   viewport.addChild(player);
 
   gameLoop();
