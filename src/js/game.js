@@ -6,7 +6,8 @@ document.getElementById("game").appendChild(renderer.view);
 
 var map,
     player,
-    viewport = new PIXI.DisplayObjectContainer();
+    viewport = new PIXI.DisplayObjectContainer(),
+    win = false;
 
 stage.addChild(viewport);
 
@@ -63,8 +64,21 @@ function gameLoop() {
   handleInput();
   movePlayer();
 
+  if (win) {
+    stage.removeChild(viewport);
+    var text = new PIXI.Text("You Won!", { font: "80px Arial", fill: "#86c351" });
+    text.anchor.x = 0.5;
+    text.anchor.y = 0.5;
+    text.position.x = renderer.view.width / 2;
+    text.position.y = renderer.view.height / 2;
+    stage.addChild(text);
+  }
+
   renderer.render(stage);
-  requestAnimationFrame(gameLoop);
+
+  if (!win) {
+    requestAnimationFrame(gameLoop);
+  }
 }
 
 var BASE_VELOCITY = 3,
@@ -127,6 +141,12 @@ function movePlayer() {
 
   viewport.position.x = renderer.view.width / 2 - player.position.x;
   viewport.position.y = renderer.view.height / 2 - player.position.y;
+
+  // TODO don't duplicate this code (see above)
+  var newTile = map[Math.floor(player.position.y / 64)][Math.floor(player.position.x / 64)];
+  if (newTile.win) {
+    win = true;
+  }
 }
 
 function getCorners(obj, vx, vy) {
