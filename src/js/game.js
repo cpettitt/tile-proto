@@ -4,7 +4,8 @@ var stage = new PIXI.Stage(0),
 
 document.getElementById("game").appendChild(renderer.view);
 
-var level;
+var level,
+    player;
 
 loadGame(onAssetsLoaded);
 
@@ -17,7 +18,6 @@ function onAssetsLoaded() {
       stageX = 0,
       stageY = 0,
       mapIdx = 0;
-  console.log(level);
   for (var i = 0; i < level.height; ++i) {
     stageX = 0;
     for (var j = 0; j < level.width; ++j) {
@@ -32,7 +32,41 @@ function onAssetsLoaded() {
     stageY += level.tileheight;
   }
 
+  // Draw the player
+  player = PIXI.Sprite.fromFrame("images/player.png");
+  player.anchor.x = 0.5;
+  player.anchor.y = 0.5;
+  player.position.x = 160;
+  player.position.y = 160;
+  stage.addChild(player);
+
+  gameLoop();
+}
+
+function gameLoop() {
+  handleInput();
+  movePlayer();
+
   renderer.render(stage);
+  requestAnimationFrame(gameLoop);
+}
+
+var LEFT = 37,
+    UP = 38,
+    RIGHT = 39,
+    DOWN = 40;
+function handleInput() {
+  player.position.vx = 0;
+  player.position.vy = 0;
+  if (key.isPressed(UP)) player.position.vy = -2;
+  if (key.isPressed(DOWN)) player.position.vy = 2;
+  if (key.isPressed(LEFT)) player.position.vx = -2;
+  if (key.isPressed(RIGHT)) player.position.vx = 2;
+}
+
+function movePlayer() {
+  player.position.x += player.position.vx;
+  player.position.y += player.position.vy;
 }
 
 function cacheTiles(texture, baseName, frameWidth, frameHeight) {

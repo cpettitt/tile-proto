@@ -8,6 +8,7 @@
   "author": "Chris Pettitt <cpettitt@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "keymaster": "^1.6.2",
     "pixi.js": "^2.2.5"
   }
 }
