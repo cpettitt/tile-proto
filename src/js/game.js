@@ -63,7 +63,7 @@ if (navigator.userAgent.match(/iPhone/)) {
 loadGame(onAssetsLoaded);
 
 function onAssetsLoaded(levelData) {
-  cacheTiles(PIXI.TextureCache["images/tiles.png"], "tiles", 64, 64);
+  cacheTiles(PIXI.TextureCache["images/tiles.png"], "tiles", 32, 32);
 
   map = [];
 
@@ -71,14 +71,18 @@ function onAssetsLoaded(levelData) {
   // TODO don't assume 1 layer
   var layerData = levelData.layers[0].data,
       stageX = 0,
-      stageY = 0,
+      stageY = 16,
       layerIdx = 0;
   for (var i = 0; i < levelData.height; ++i) {
-    stageX = 0;
+    stageX = 16;
     map[i] = [];
     for (var j = 0; j < levelData.width; ++j) {
-      var tileId = layerData[layerIdx++],
+      var tileData = layerData[layerIdx++],
+          tileId = stripRotation(tileData),
           sprite = PIXI.Sprite.fromFrame("tiles-" + tileId);
+
+      sprite.anchor.x = sprite.anchor.y = 0.5;
+      rotateSprite(sprite, tileData);
 
       // TODO don't assume 1 tileset
       // TODO map data and tilesets seem to be off-by-one
@@ -104,11 +108,33 @@ function onAssetsLoaded(levelData) {
   player.anchor.y = 0.5;
 
   var playerSpawn = levelData.layers[1].objects[0];
-  player.position.x = playerSpawn.x;
-  player.position.y = playerSpawn.y;
+  player.position.x = Math.floor(playerSpawn.x);
+  player.position.y = Math.floor(playerSpawn.y);
   viewport.addChild(player);
 
   gameLoop();
+}
+
+var FLIP_HORIZ_BIT = 0x80000000,
+    FLIP_VERT_BIT =  0x40000000,
+    FLIP_DIAG_BIT =  0x20000000,
+    NO_ROT_MASK =    0x1FFFFFFF;
+
+function stripRotation(tileData) {
+  return tileData & NO_ROT_MASK;
+}
+
+function rotateSprite(sprite, tileData) {
+  if (tileData & FLIP_DIAG_BIT) {
+    sprite.rotation = -Math.PI / 2;
+    sprite.scale.y = -1;
+  }
+  if ((tileData & FLIP_HORIZ_BIT)) {
+    sprite.scale.x *= -1;
+  }
+  if (tileData & FLIP_VERT_BIT) {
+    sprite.scale.y *= -1;
+  }
 }
 
 function gameLoop() {
@@ -161,21 +187,21 @@ function handleInput() {
 }
 
 function movePlayer() {
-  var currentTile = map[Math.floor(player.position.y / 64)][Math.floor(player.position.x / 64)];
+  var currentTile = map[Math.floor(player.position.y / 32)][Math.floor(player.position.x / 32)];
 
   var vyCorners = getCorners(player, 0, player.position.vy);
   if (player.position.vy < 0) {
     if (vyCorners.topLeft.walkable && vyCorners.topRight.walkable) {
       player.position.y += player.position.vy;
     } else {
-      player.position.y = Math.floor(currentTile.y + player.height / 2);
+      player.position.y = Math.floor(currentTile.y - 16 + player.height / 2);
     }
   }
   if (player.position.vy > 0) {
     if (vyCorners.botLeft.walkable && vyCorners.botRight.walkable) {
       player.position.y += player.position.vy;
     } else {
-      player.position.y = Math.floor(currentTile.y + 64 - player.height / 2);
+      player.position.y = Math.floor(currentTile.y + 16 - player.height / 2);
     }
   }
 
@@ -184,14 +210,14 @@ function movePlayer() {
     if (vxCorners.topLeft.walkable && vxCorners.botLeft.walkable) {
       player.position.x += player.position.vx;
     } else {
-      player.position.x = Math.floor(currentTile.x + player.width / 2);
+      player.position.x = Math.floor(currentTile.x - 16 + player.width / 2);
     }
   }
   if (player.position.vx > 0) {
     if (vxCorners.topRight.walkable && vxCorners.botRight.walkable) {
       player.position.x += player.position.vx;
     } else {
-      player.position.x = Math.floor(currentTile.x + 64 - player.width / 2);
+      player.position.x = Math.floor(currentTile.x + 16 - player.width / 2);
     }
   }
 
@@ -199,7 +225,7 @@ function movePlayer() {
   viewport.position.y = renderer.view.height / 2 - player.position.y;
 
   // TODO don't duplicate this code (see above)
-  var newTile = map[Math.floor(player.position.y / 64)][Math.floor(player.position.x / 64)];
+  var newTile = map[Math.floor(player.position.y / 32)][Math.floor(player.position.x / 32)];
   if (newTile.win) {
     win = true;
   }
@@ -207,10 +233,10 @@ function movePlayer() {
 
 function getCorners(obj, vx, vy) {
   // TODO don't hardcode tile size
-  var top = Math.floor((player.y + vy - player.height / 2) / 64),
-      bot = Math.floor((player.y + vy - 1 + player.height / 2) / 64),
-      left = Math.floor((player.x + vx - player.width / 2) / 64),
-      right = Math.floor((player.x + vx - 1 + player.width / 2) / 64);
+  var top = Math.floor((player.y + vy - player.height / 2) / 32),
+      bot = Math.floor((player.y + vy - 1 + player.height / 2) / 32),
+      left = Math.floor((player.x + vx - player.width / 2) / 32),
+      right = Math.floor((player.x + vx - 1 + player.width / 2) / 32);
 
   return {
     topLeft: map[top][left],
@@ -221,19 +247,20 @@ function getCorners(obj, vx, vy) {
 }
 
 function cacheTiles(texture, baseName, frameWidth, frameHeight) {
-  var cols = Math.floor(texture.width / frameWidth),
-      rows = Math.floor(texture.height / frameHeight),
+  var cols = Math.floor((texture.width + 4) / (frameWidth + 4)),
+      rows = Math.floor((texture.height + 4) / (frameHeight + 4)),
       nextId = 1, // NOTE: tiled starts with 1-based ids
       baseTexture = texture.baseTexture;
 
   for (var i = 0; i < rows; ++i) {
     for (var j = 0; j < cols; ++j) {
-      PIXI.TextureCache[baseName + "-" + nextId++] = new PIXI.Texture(baseTexture, {
-        x: j * frameWidth,
-        y: i * frameHeight,
+      var options = {
+        x: j * (frameWidth + 4),
+        y: i * (frameHeight + 4),
         width: frameWidth,
         height: frameHeight
-      });
+      };
+      PIXI.TextureCache[baseName + "-" + nextId++] = new PIXI.Texture(baseTexture, options);
     }
   }
 }
