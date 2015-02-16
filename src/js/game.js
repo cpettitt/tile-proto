@@ -11,6 +11,55 @@ var map,
 
 stage.addChild(viewport);
 
+var controllerUp = false,
+    controllerDown = false,
+    controllerLeft = false,
+    controllerRight = false;
+
+if (navigator.userAgent.match(/iPhone/)) {
+  GameController.init({
+    left: {
+      dpad: {
+        up: {
+          touchStart: function() {
+            controllerUp = true;
+          },
+          touchEnd: function() {
+            controllerUp = false;
+          }
+        },
+        down: {
+          touchStart: function() {
+            controllerDown = true;
+          },
+          touchEnd: function() {
+            controllerDown = false;
+          }
+        },
+        left: {
+          touchStart: function() {
+            controllerLeft = true;
+          },
+          touchEnd: function() {
+            controllerLeft = false;
+          }
+        },
+        right: {
+          touchStart: function() {
+            controllerRight = true;
+          },
+          touchEnd: function() {
+            controllerRight = false;
+          }
+        }
+      }
+    },
+    right: {
+      type: "none"
+    }
+  });
+}
+
 loadGame(onAssetsLoaded);
 
 function onAssetsLoaded(levelData) {
@@ -90,16 +139,21 @@ function handleInput() {
   player.position.vx = 0;
   player.position.vy = 0;
 
-  if (key.isPressed(UP)) {
+  var up = key.isPressed(UP) || controllerUp,
+      down = key.isPressed(DOWN) || controllerDown,
+      left = key.isPressed(LEFT) || controllerLeft,
+      right = key.isPressed(RIGHT) || controllerRight;
+
+  if (up && !down) {
     player.position.vy = -BASE_VELOCITY;
   }
-  if (key.isPressed(DOWN)) {
+  if (down && !up) {
     player.position.vy = BASE_VELOCITY;
   }
-  if (key.isPressed(LEFT)) {
+  if (left && !right) {
     player.position.vx = -BASE_VELOCITY;
   }
-  if (key.isPressed(RIGHT)) {
+  if (right && !left) {
     player.position.vx = BASE_VELOCITY;
   }
 }
