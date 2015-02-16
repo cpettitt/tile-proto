@@ -4,32 +4,45 @@ var stage = new PIXI.Stage(0),
 
 document.getElementById("game").appendChild(renderer.view);
 
-var level,
+var map,
     player;
 
 loadGame(onAssetsLoaded);
 
-function onAssetsLoaded() {
+function onAssetsLoaded(levelData) {
   cacheTiles(PIXI.TextureCache["images/tiles.png"], "tiles", 64, 64);
 
+  map = [];
+
   // TODO add viewport support
-  // For now just render the whole map...
-  var map = level.layers[0].data,
+  // TODO don't assume 1 layer
+  var layerData = levelData.layers[0].data,
       stageX = 0,
       stageY = 0,
-      mapIdx = 0;
-  for (var i = 0; i < level.height; ++i) {
+      layerIdx = 0;
+  for (var i = 0; i < levelData.height; ++i) {
     stageX = 0;
-    for (var j = 0; j < level.width; ++j) {
-      var sprite = PIXI.Sprite.fromFrame("tiles-" + map[mapIdx++]);
+    map[i] = [];
+    for (var j = 0; j < levelData.width; ++j) {
+      var tileId = layerData[layerIdx++],
+          sprite = PIXI.Sprite.fromFrame("tiles-" + tileId);
+
+      // TODO don't assume 1 tileset
+      // TODO map data and tilesets seem to be off-by-one
+      var tileProps = levelData.tilesets[0].tileproperties[tileId - 1];
+      if (tileProps) {
+        deepCopy(sprite, tileProps);
+      }
+
       sprite.position.x = stageX;
       sprite.position.y = stageY;
       stage.addChild(sprite);
+      map[i][j] = sprite;
 
-      stageX += level.tilewidth;
+      stageX += levelData.tilewidth;
     }
 
-    stageY += level.tileheight;
+    stageY += levelData.tileheight;
   }
 
   // Draw the player
@@ -58,15 +71,70 @@ var LEFT = 37,
 function handleInput() {
   player.position.vx = 0;
   player.position.vy = 0;
-  if (key.isPressed(UP)) player.position.vy = -2;
-  if (key.isPressed(DOWN)) player.position.vy = 2;
-  if (key.isPressed(LEFT)) player.position.vx = -2;
-  if (key.isPressed(RIGHT)) player.position.vx = 2;
+
+  if (key.isPressed(UP)) {
+    player.position.vy = -2;
+  }
+  if (key.isPressed(DOWN)) {
+    player.position.vy = 2;
+  }
+  if (key.isPressed(LEFT)) {
+    player.position.vx = -2;
+  }
+  if (key.isPressed(RIGHT)) {
+    player.position.vx = 2;
+  }
 }
 
 function movePlayer() {
-  player.position.x += player.position.vx;
-  player.position.y += player.position.vy;
+  var currentTile = map[Math.floor(player.position.y / 64)][Math.floor(player.position.x / 64)];
+
+  var vyCorners = getCorners(player, 0, player.position.vy);
+  if (player.position.vy < 0) {
+    if (vyCorners.topLeft.walkable && vyCorners.topRight.walkable) {
+      player.position.y += player.position.vy;
+    } else {
+      player.position.y = Math.floor(currentTile.y + player.height / 2);
+    }
+  }
+  if (player.position.vy > 0) {
+    if (vyCorners.botLeft.walkable && vyCorners.botRight.walkable) {
+      player.position.y += player.position.vy;
+    } else {
+      player.position.y = Math.floor(currentTile.y + 64 - player.height / 2);
+    }
+  }
+
+  var vxCorners = getCorners(player, player.position.vx, 0);
+  if (player.position.vx < 0) {
+    if (vxCorners.topLeft.walkable && vxCorners.botLeft.walkable) {
+      player.position.x += player.position.vx;
+    } else {
+      player.position.x = Math.floor(currentTile.x + player.width / 2);
+    }
+  }
+  if (player.position.vx > 0) {
+    if (vxCorners.topRight.walkable && vxCorners.botRight.walkable) {
+      player.position.x += player.position.vx;
+    } else {
+      player.position.x = Math.floor(currentTile.x + 64 - player.width / 2);
+    }
+  }
+}
+
+function getCorners(obj, vx, vy) {
+  // TODO don't hardcode tile size
+  var top = Math.floor((player.y + vy - player.height / 2) / 64),
+      bot = Math.floor((player.y + vy - 1 + player.height / 2) / 64),
+      left = Math.floor((player.x + vx - player.width / 2) / 64),
+      right = Math.floor((player.x + vx - 1 + player.width / 2) / 64);
+
+  return {
+    topLeft: map[top][left],
+    topRight: map[top][right],
+    botLeft: map[bot][left],
+    botRight: map[bot][right]
+  };
 }
 
 function cacheTiles(texture, baseName, frameWidth, frameHeight) {
@@ -88,16 +156,17 @@ function cacheTiles(texture, baseName, frameWidth, frameHeight) {
 }
 
 function loadGame(cb) {
-  var pending = 2;
+  var levelData,
+      pending = 2;
 
   function onDone() {
     if (!--pending) {
-      cb();
+      cb(levelData);
     }
   }
 
   fetchJson("map/level1.json", function(json) {
-    level = json;
+    levelData = json;
     onDone();
   });
 
@@ -125,4 +194,18 @@ function fetch(url, cb) {
     cb(xhr.response);
   });
   xhr.send();
+}
+
+function deepCopy(target, src) {
+  Object.keys(src).forEach(function(k) {
+    var elem = src[k];
+    if (Array.isArray(elem)) {
+      target[k] = deepCopy([], elem);
+    } else if (typeof elem === "object") {
+      target[k] = deepCopy({}, elem);
+    } else {
+      target[k] = src[k];
+    }
+  });
+  return target;
 }

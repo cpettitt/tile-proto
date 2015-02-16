@@ -33,6 +33,13 @@
             },
          "spacing":0,
          "tileheight":64,
+         "tileproperties":
+            {
+             "1":
+                {
+                 "walkable":"true"
+                }
+            },
          "tilewidth":64
         }],
  "tilewidth":64,
